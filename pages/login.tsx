@@ -1,6 +1,6 @@
 import React from "react";
 import { Card, TextInput, PasswordInput, Button } from "@mantine/core";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { auth } from "@/lib/firebaseClient";
@@ -18,7 +18,8 @@ const schema = yup.object({
     .required("Este campo no tiene que estar vacío"),
   contrasena: yup
     .string()
-    .min(6, "La contraseña debe de contener al menos 6 caracteres"),
+    .min(6, "La contraseña debe de contener al menos 6 caracteres")
+    .required("La contraseña es requerida"),
 });
 
 function LoginPage() {
@@ -26,18 +27,22 @@ function LoginPage() {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm({
+  } = useForm<FormData>({
     resolver: yupResolver(schema),
+    defaultValues: {
+      email: '',
+      contrasena: ''
+    }
   });
 
-  const onSubmit = async (data: FormData) => {
-    try{
+  const onSubmit: SubmitHandler<FormData> = async (data) => {
+    try {
       console.log(data.email);
       console.log(data.contrasena);
       const response = await signInWithEmailAndPassword(auth, data.email, data.contrasena);
-      console.log(response)
-    } catch(error){
-      console.log(error)
+      console.log(response);
+    } catch (error) {
+      console.log(error);
     }
   };
 
