@@ -6,6 +6,11 @@ import * as yup from "yup";
 import { auth } from "@/lib/firebaseClient";
 import { signInWithEmailAndPassword } from "firebase/auth";
 
+interface FormData {
+  email: string;
+  contrasena: string;
+}
+
 const schema = yup.object({
   email: yup
     .string()
@@ -25,7 +30,7 @@ function LoginPage() {
     resolver: yupResolver(schema),
   });
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (data: FormData) => {
     try{
       console.log(data.email);
       console.log(data.contrasena);
