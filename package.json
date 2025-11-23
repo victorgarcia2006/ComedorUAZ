@@ -9,9 +9,18 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@heroui/react": "^2.8.5",
+    "@hookform/resolvers": "^5.2.2",
+    "@mantine/core": "^8.3.9",
+    "@mantine/hooks": "^8.3.9",
+    "firebase": "^12.6.0",
+    "firebase-admin": "^13.6.0",
+    "framer-motion": "^12.23.24",
     "next": "16.0.3",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "react-hook-form": "^7.66.1",
+    "yup": "^1.7.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -20,6 +29,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.0.3",
+    "postcss": "^8.5.6",
+    "postcss-preset-mantine": "^1.18.0",
+    "postcss-simple-vars": "^7.0.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
