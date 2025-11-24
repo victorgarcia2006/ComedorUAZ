@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Navbar, NavbarBrand, NavbarContent, Chip } from "@heroui/react";
+import {
+  Navbar,
+  NavbarBrand,
+  NavbarContent,
+  Chip,
+  addToast,
+} from "@heroui/react";
 import {
   Button,
   Card,
@@ -18,18 +24,21 @@ import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { IconPhoto, IconPlus } from "@tabler/icons-react";
+import { useFirebaseForm } from "@/lib/useForm";
+import { db } from "@/lib/firebaseClient";
+import { ref, onValue } from "firebase/database";
 
-interface FormData {
+export interface FormData {
   nombre: string;
   descripcion: string;
   platoFuerte: string;
-  complemento: string[];
+  complemento1: string;
+  complemento2: string;
   bebida: string;
   postre: string;
-  tipo: string;
+  tipo: "Desayuno" | "Comida" | "Cena";
   precio: number;
-  /* imagen: string; */
-  demanda: string;
+  demanda: "Alta" | "Media" | "Baja";
   nutricional: {
     calorias: number;
     proteinas: number;
@@ -80,14 +89,9 @@ const schema = yup.object({
     .positive("El precio debe ser mayor a 0")
     .required("El precio es obligatorio"),
 
-  imagen: yup
-    .string()
-    .url("Debe ser una URL válida")
-    .required("La imagen es obligatoria"),
-
   demanda: yup
     .string()
-    .oneOf(["alta", "media", "baja"], "Demanda no válida")
+    .oneOf(["Alta", "Media", "Baja"], "Demanda no válida")
     .required("La demanda es obligatoria"),
 
   nutricional: yup.object({
@@ -123,6 +127,19 @@ function HomeAdmin() {
   const router = useRouter();
   const [opened, { open, close }] = useDisclosure(false);
   const [file, setFile] = useState<File | null>(null);
+  const [tipo, setTipo] = useState("Desayuno");
+  const [desayuno, setDesayuno] = useState<FormData>();
+  const [comida, setComida] = useState<FormData>();
+  const date = new Date();
+  const dias = [
+    "Domingo",
+    "Lunes",
+    "Martes",
+    "Miercoles",
+    "Jueves",
+    "Viernes",
+    "Sabado",
+  ];
   const comidas = [
     {
       nombre: "Chilaquiles",
@@ -171,8 +188,9 @@ function HomeAdmin() {
   const {
     control,
     handleSubmit,
+    reset,
     formState: { errors },
-  } = useForm({
+  } = useForm<FormData>({
     resolver: yupResolver(schema),
     defaultValues: {
       nombre: "",
@@ -184,8 +202,7 @@ function HomeAdmin() {
       postre: "",
       tipo: "Desayuno",
       precio: 0,
-      imagen: "",
-      demanda: "alta",
+      demanda: "Alta",
       nutricional: {
         calorias: 0,
         proteinas: 0,
@@ -195,6 +212,33 @@ function HomeAdmin() {
       disponible: false,
     },
   });
+  const { submitForm, loading } = useFirebaseForm(`platillos/${tipo}`);
+
+  const onSubmit = async (data: FormData) => {
+    console.log("Entre al submit");
+    try {
+      setTipo(data.tipo);
+      data.tipo === "Desayuno" ? (data.precio = 20) : (data.precio = 25);
+      const res = await submitForm(data);
+      if (res.ok) {
+        addToast({
+          title: "Exito",
+          description: "Platillo agregado exitosamente",
+        });
+        handleClose();
+      }
+    } catch (error) {
+      addToast({
+        title: "Error",
+        description: "No se pudo agregar el platillo",
+      });
+    }
+  };
+
+  const handleClose = () => {
+    reset();
+    close();
+  };
 
   const comidaPorTipo = comidas.reduce((acc, comida) => {
     if (!acc[comida.tipo]) {
@@ -205,8 +249,20 @@ function HomeAdmin() {
   }, {} as Record<string, any[]>);
 
   useEffect(() => {
-    console.log(comidaPorTipo);
-  }, [comidaPorTipo]);
+    const itemsDesayuno = ref(db, `platillos/Desayuno`);
+    onValue(itemsDesayuno, (snapshot) => {
+      const data = snapshot.val();
+      setDesayuno(data);
+    });
+    console.log("Desayuno", desayuno);
+
+    const itemsComida = ref(db, `platillos/Comida`);
+    onValue(itemsComida, (snapshot) => {
+      const data = snapshot.val();
+      setComida(data);
+    });
+    console.log("Comida", comida);
+  }, []);
 
   return (
     <main className="bg-white h-full">
@@ -235,95 +291,166 @@ function HomeAdmin() {
         </NavbarContent>
       </Navbar>
       <div className="flex items-center justify-start flex-col h-full gap-4">
-        <h1 className="font-bold mt-4 text-2xl text-[#252D4D]">Miercoles</h1>
+        <h1 className="font-bold mt-4 text-2xl text-[#252D4D]">
+          {dias[date.getDay()]}
+        </h1>
         <div className="flex justify-end w-full mr-4">
           <Button color="#20388C" variant="outline" onClick={open}>
             Agregar Platillo
           </Button>
         </div>
-        {Object.entries(comidaPorTipo).map(([tipo, comidas]) => (
-          <Card
+        <Card
+          withBorder={false}
+          shadow="sm"
+          radius="md"
+          bg="#20388C"
+          key={tipo}
+          w="340px"
+          h="auto"
+          className=""
+        >
+          <h2 className="font-bold text-2xl text-white mb-2">Desayuno</h2>
+          {desayuno !== null ? (
+            <Card
+              withBorder={false}
+              radius="md"
+              bg="white"
+              key={desayuno?.nombre}
+              className="min-h-[360px] h-auto grow"
+            >
+              <div className="flex flex-col items-center justify-between w-full p-2 gap-2">
+                <Card.Section>
+                  <div className="flex bg-gray-300 rounded-2xl h-32 w-[280px] items-center justify-center">
+                    <IconPhoto size={64} color="white" />
+                  </div>
+                </Card.Section>
+                <Card.Section>
+                  <div className="flex flex-col items-start w-full">
+                    <div className="flex justify-between w-full items-center">
+                      <p className="font-bold text-xl text-[#252D4D]">
+                        {desayuno?.nombre}
+                      </p>
+                      <Chip
+                        radius="md"
+                        size="md"
+                        className="mt-2"
+                        classNames={{
+                          base: [
+                            desayuno?.disponible ? "bg-[#588C20]" : "bg-[#8C203B]",
+                            "text-white",
+                            "font-bold",
+                          ],
+                        }}
+                      >
+                        {desayuno?.disponible ? "Disponible" : "No disponible"}
+                      </Chip>
+                    </div>
+                    <p className="text-gray-700">{desayuno?.descripcion}</p>
+                  </div>
+                </Card.Section>
+                <Card.Section>
+                  <div className="w-full flex items-center justify-between">
+                    <Accordion defaultValue="Información nutrimental">
+                      <Accordion.Item value="Información nutrimental">
+                        <Accordion.Control>
+                          <p className="font-semibold text-gray-700">
+                            Información nutrimental
+                          </p>
+                        </Accordion.Control>
+                        <Accordion.Panel>
+                          <p>Calorías: {desayuno?.nutricional.calorias}</p>
+                          <p>Proteínas: {desayuno?.nutricional.proteinas}</p>
+                          <p>Lípidos: {desayuno?.nutricional.lipidos}</p>
+                          <p>Carbohidratos: {desayuno?.nutricional.carbohidratos}</p>
+                        </Accordion.Panel>
+                      </Accordion.Item>
+                    </Accordion>
+                  </div>
+                </Card.Section>
+              </div>
+            </Card>
+          ) : (
+            <p className="text-white">No hay desayuno</p>
+          )}
+        </Card>
+
+        <Card
+          withBorder={false}
+          shadow="sm"
+          radius="md"
+          bg="#20388C"
+          key={tipo}
+          w="340px"
+          h="auto"
+          className=""
+        >
+          <h2 className="font-bold text-2xl text-white mb-2">Comida</h2>
+          {comida !== null ? (
+            <Card
             withBorder={false}
-            shadow="sm"
             radius="md"
-            bg="#20388C"
-            key={tipo}
-            w="340px"
-            h="auto"
-            className=""
+            bg="white"
+            key={desayuno?.nombre}
+            className="min-h-[360px] h-auto grow"
           >
-            <h2 className="font-bold text-2xl text-white mb-2">{tipo}</h2>
-            {comidas.map((comida) => (
-              <Card
-                withBorder={false}
-                radius="md"
-                bg="white"
-                key={comida.nombre}
-                className="min-h-[360px] h-auto grow"
-              >
-                <div className="flex flex-col items-center justify-between w-full p-2 gap-2">
-                  <Card.Section>
-                    <img
-                      src={comida.imagen}
-                      alt={comida.nombre}
-                      className="rounded-md object-cover h-48 w-64"
-                    />
-                  </Card.Section>
-                  <Card.Section>
-                    <div className="flex flex-col items-start w-full">
-                      <div className="flex justify-between w-full items-center">
-                        <p className="font-bold text-xl text-[#252D4D]">
-                          {comida.nombre}
-                        </p>
-                        <Chip
-                          radius="md"
-                          size="md"
-                          className="mt-2"
-                          classNames={{
-                            base: [
-                              comida.disponible
-                                ? "bg-[#588C20]"
-                                : "bg-[#8C203B]",
-                              "text-white",
-                              "font-bold",
-                            ],
-                          }}
-                        >
-                          {comida.disponible ? "Disponible" : "No disponible"}
-                        </Chip>
-                      </div>
-                      <p className="text-gray-700">{comida.descripcion}</p>
-                    </div>
-                  </Card.Section>
-                  <Card.Section>
-                    <div className="w-full flex items-center justify-between">
-                      <Accordion defaultValue="Información nutrimental">
-                        <Accordion.Item value="Información nutrimental">
-                          <Accordion.Control>
-                            <p className="font-semibold text-gray-700">
-                              Información nutrimental
-                            </p>
-                          </Accordion.Control>
-                          <Accordion.Panel>
-                            <p>Calorías: {comida.nutricional.calorias}</p>
-                            <p>Proteínas: {comida.nutricional.proteinas}</p>
-                            <p>Lípidos: {comida.nutricional.lipidos}</p>
-                            <p>
-                              Carbohidratos: {comida.nutricional.carbohidratos}
-                            </p>
-                          </Accordion.Panel>
-                        </Accordion.Item>
-                      </Accordion>
-                    </div>
-                  </Card.Section>
+            <div className="flex flex-col items-center justify-between w-full p-2 gap-2">
+              <Card.Section>
+                <div className="flex bg-gray-300 rounded-2xl h-32 w-full items-center justify-center">
+                  <IconPhoto size={64} color="white" />
                 </div>
-              </Card>
-            ))}
+              </Card.Section>
+              <Card.Section>
+                <div className="flex flex-col items-start w-full">
+                  <div className="flex justify-between w-full items-center">
+                    <p className="font-bold text-xl text-[#252D4D]">
+                      {desayuno?.nombre}
+                    </p>
+                    <Chip
+                      radius="md"
+                      size="md"
+                      className="mt-2"
+                      classNames={{
+                        base: [
+                          desayuno?.disponible ? "bg-[#588C20]" : "bg-[#8C203B]",
+                          "text-white",
+                          "font-bold",
+                        ],
+                      }}
+                    >
+                      {desayuno?.disponible ? "Disponible" : "No disponible"}
+                    </Chip>
+                  </div>
+                  <p className="text-gray-700">{desayuno?.descripcion}</p>
+                </div>
+              </Card.Section>
+              <Card.Section>
+                <div className="w-full flex items-center justify-between">
+                  <Accordion defaultValue="Información nutrimental">
+                    <Accordion.Item value="Información nutrimental">
+                      <Accordion.Control>
+                        <p className="font-semibold text-gray-700">
+                          Información nutrimental
+                        </p>
+                      </Accordion.Control>
+                      <Accordion.Panel>
+                        <p>Calorías: {desayuno?.nutricional.calorias}</p>
+                        <p>Proteínas: {desayuno?.nutricional.proteinas}</p>
+                        <p>Lípidos: {desayuno?.nutricional.lipidos}</p>
+                        <p>Carbohidratos: {desayuno?.nutricional.carbohidratos}</p>
+                      </Accordion.Panel>
+                    </Accordion.Item>
+                  </Accordion>
+                </div>
+              </Card.Section>
+            </div>
           </Card>
-        ))}
+          ) : (
+            <p className="text-white">No hay comida</p>
+          )}
+        </Card>
       </div>
       <Modal opened={opened} onClose={close} title="Agregar platillo" centered>
-        <form /* onSubmit={} */ className="flex flex-col gap-2">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-2">
           {/* {file ? (
             <div className="flex items-center justify-center">
               <img
@@ -441,7 +568,7 @@ function HomeAdmin() {
               />
             )}
           />
-          <Controller
+          {/* <Controller
             name="precio"
             control={control}
             render={({ field }) => (
@@ -452,7 +579,7 @@ function HomeAdmin() {
                 {...field}
               />
             )}
-          />
+          /> */}
           <Controller
             name="demanda"
             control={control}
@@ -530,8 +657,8 @@ function HomeAdmin() {
               />
             )}
           />
-          <Button color="#20388C" type="submit">
-            Guardar
+          <Button color="#20388C" type="submit" loading={loading}>
+            {loading ? "Guardando..." : "Guardar"}
           </Button>
         </form>
       </Modal>
