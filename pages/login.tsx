@@ -5,6 +5,8 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { auth } from "@/lib/firebaseClient";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import { addToast, Toast } from "@heroui/toast";
 
 interface FormData {
   email: string;
@@ -23,6 +25,7 @@ const schema = yup.object({
 });
 
 function LoginPage() {
+  const router = useRouter();
   const {
     control,
     handleSubmit,
@@ -30,18 +33,33 @@ function LoginPage() {
   } = useForm<FormData>({
     resolver: yupResolver(schema),
     defaultValues: {
-      email: '',
-      contrasena: ''
-    }
+      email: "",
+      contrasena: "",
+    },
   });
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     try {
-      console.log(data.email);
-      console.log(data.contrasena);
-      const response = await signInWithEmailAndPassword(auth, data.email, data.contrasena);
+      const response = await signInWithEmailAndPassword(
+        auth,
+        data.email,
+        data.contrasena
+      );
       console.log(response);
+      if (response.user) {
+        await localStorage.setItem("token", response.user.refreshToken);
+        router.push("/admin");
+      } else {
+        addToast({
+          title: "Error",
+          description: "No se pudo iniciar sesión",
+        });
+      }
     } catch (error) {
+      addToast({
+        title: "Error",
+        description: "No se pudo iniciar sesión",
+      });
       console.log(error);
     }
   };
@@ -58,26 +76,26 @@ function LoginPage() {
             name="email"
             control={control}
             render={({ field }) => (
-                <TextInput
-                  type="text"
-                  placeholder="Email"
-                  label="Email"
-                  error={errors.email?.message}
-                  {...field}
-                />
+              <TextInput
+                type="text"
+                placeholder="Email"
+                label="Email"
+                error={errors.email?.message}
+                {...field}
+              />
             )}
           />
           <Controller
             name="contrasena"
             control={control}
             render={({ field }) => (
-                <PasswordInput
-                  type="password"
-                  placeholder="Contraseña"
-                  label="Contraseña"
-                  error={errors.contrasena?.message}
-                  {...field}
-                />
+              <PasswordInput
+                type="password"
+                placeholder="Contraseña"
+                label="Contraseña"
+                error={errors.contrasena?.message}
+                {...field}
+              />
             )}
           />
           <Button type="submit" color="#20388C">
