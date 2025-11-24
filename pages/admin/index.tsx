@@ -86,7 +86,6 @@ const schema = yup.object({
   precio: yup
     .number()
     .typeError("El precio debe ser un número")
-    .positive("El precio debe ser mayor a 0")
     .required("El precio es obligatorio"),
 
   demanda: yup
@@ -140,6 +139,7 @@ function HomeAdmin() {
     "Viernes",
     "Sabado",
   ];
+  const [dia, setDia] = useState(dias[date.getDay()]);
   const comidas = [
     {
       nombre: "Chilaquiles",
@@ -201,7 +201,7 @@ function HomeAdmin() {
       bebida: "",
       postre: "",
       tipo: "Desayuno",
-      precio: 0,
+      precio: 20,
       demanda: "Alta",
       nutricional: {
         calorias: 0,
@@ -212,7 +212,7 @@ function HomeAdmin() {
       disponible: false,
     },
   });
-  const { submitForm, loading } = useFirebaseForm(`platillos/${tipo}`);
+  const { submitForm, loading } = useFirebaseForm(`platillos/${dia}/${tipo}`);
 
   const onSubmit = async (data: FormData) => {
     console.log("Entre al submit");
@@ -240,29 +240,23 @@ function HomeAdmin() {
     close();
   };
 
-  const comidaPorTipo = comidas.reduce((acc, comida) => {
-    if (!acc[comida.tipo]) {
-      acc[comida.tipo] = [];
-    }
-    acc[comida.tipo].push(comida);
-    return acc;
-  }, {} as Record<string, any[]>);
-
   useEffect(() => {
-    const itemsDesayuno = ref(db, `platillos/Desayuno`);
+    const itemsDesayuno = ref(db, `platillos/${dias[date.getDay()]}/Desayuno`);
     onValue(itemsDesayuno, (snapshot) => {
       const data = snapshot.val();
       setDesayuno(data);
     });
     console.log("Desayuno", desayuno);
 
-    const itemsComida = ref(db, `platillos/Comida`);
+    const itemsComida = ref(db, `platillos/${dias[date.getDay()]}/Comida`);
     onValue(itemsComida, (snapshot) => {
       const data = snapshot.val();
       setComida(data);
     });
     console.log("Comida", comida);
-  }, []);
+
+    console.log("Errors", errors);
+  }, [errors]);
 
   return (
     <main className="bg-white h-full">
@@ -304,7 +298,6 @@ function HomeAdmin() {
           shadow="sm"
           radius="md"
           bg="#20388C"
-          key={tipo}
           w="340px"
           h="auto"
           className=""
@@ -315,7 +308,6 @@ function HomeAdmin() {
               withBorder={false}
               radius="md"
               bg="white"
-              key={desayuno?.nombre}
               className="min-h-[360px] h-auto grow"
             >
               <div className="flex flex-col items-center justify-between w-full p-2 gap-2">
@@ -379,7 +371,6 @@ function HomeAdmin() {
           shadow="sm"
           radius="md"
           bg="#20388C"
-          key={tipo}
           w="340px"
           h="auto"
           className=""
@@ -390,7 +381,7 @@ function HomeAdmin() {
             withBorder={false}
             radius="md"
             bg="white"
-            key={desayuno?.nombre}
+
             className="min-h-[360px] h-auto grow"
           >
             <div className="flex flex-col items-center justify-between w-full p-2 gap-2">
@@ -403,7 +394,7 @@ function HomeAdmin() {
                 <div className="flex flex-col items-start w-full">
                   <div className="flex justify-between w-full items-center">
                     <p className="font-bold text-xl text-[#252D4D]">
-                      {desayuno?.nombre}
+                      {comida?.nombre}
                     </p>
                     <Chip
                       radius="md"
@@ -411,16 +402,16 @@ function HomeAdmin() {
                       className="mt-2"
                       classNames={{
                         base: [
-                          desayuno?.disponible ? "bg-[#588C20]" : "bg-[#8C203B]",
+                          comida?.disponible ? "bg-[#588C20]" : "bg-[#8C203B]",
                           "text-white",
                           "font-bold",
                         ],
                       }}
                     >
-                      {desayuno?.disponible ? "Disponible" : "No disponible"}
+                      {comida?.disponible ? "Disponible" : "No disponible"}
                     </Chip>
                   </div>
-                  <p className="text-gray-700">{desayuno?.descripcion}</p>
+                  <p className="text-gray-700">{comida?.descripcion}</p>
                 </div>
               </Card.Section>
               <Card.Section>
@@ -433,10 +424,10 @@ function HomeAdmin() {
                         </p>
                       </Accordion.Control>
                       <Accordion.Panel>
-                        <p>Calorías: {desayuno?.nutricional.calorias}</p>
-                        <p>Proteínas: {desayuno?.nutricional.proteinas}</p>
-                        <p>Lípidos: {desayuno?.nutricional.lipidos}</p>
-                        <p>Carbohidratos: {desayuno?.nutricional.carbohidratos}</p>
+                        <p>Calorías: {comida?.nutricional.calorias}</p>
+                        <p>Proteínas: {comida?.nutricional.proteinas}</p>
+                        <p>Lípidos: {comida?.nutricional.lipidos}</p>
+                        <p>Carbohidratos: {comida?.nutricional.carbohidratos}</p>
                       </Accordion.Panel>
                     </Accordion.Item>
                   </Accordion>
@@ -567,6 +558,12 @@ function HomeAdmin() {
                 data={["Desayuno", "Comida"]}
               />
             )}
+          />
+          <Select
+            placeholder="Día"
+            label="Día"
+            data={dias}
+            onChange={(value) => setDia(value as string)}
           />
           {/* <Controller
             name="precio"
