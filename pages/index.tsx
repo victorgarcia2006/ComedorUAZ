@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Navbar, NavbarBrand, NavbarContent, Chip } from "@heroui/react";
 import { Button, Card, Accordion, Loader } from "@mantine/core";
+import { Carousel } from "@mantine/carousel";
 import Image from "next/image";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { db } from "@/lib/firebaseClient";
 import { ref, onValue } from "firebase/database";
-import { FormData } from "./admin";
+import { FormData, MenuData } from "./admin";
 import { IconPhoto } from "@tabler/icons-react";
 
 function HomePage() {
@@ -24,6 +25,7 @@ function HomePage() {
   const [dia, setDia] = useState(dias[date.getDay()]);
   const [desayuno, setDesayuno] = useState<FormData>();
   const [comida, setComida] = useState<FormData>();
+  const [menu, setMenu] = useState<MenuData | null>(null);
 
   useEffect(() => {
     const itemsDesayuno = ref(db, `platillos/${dias[date.getDay()]}/Desayuno`);
@@ -38,8 +40,82 @@ function HomePage() {
       const data = snapshot.val();
       setComida(data);
     });
+
+    const itemsMenu = ref(db, `platillos/`);
+    onValue(itemsMenu, (snapshot) => {
+      const data = snapshot.val();
+      setMenu(data);
+    });
     console.log("Comida", comida);
   }, []);
+
+  const slides = Object.entries(menu || {}).map(
+    ([dia, { Desayuno, Comida }]) => {
+      return (
+        <Carousel.Slide key={dia}>
+          <Card
+            withBorder={false}
+            shadow="sm"
+            radius="md"
+            bg="#20388C"
+            h="auto"
+            className="flex items-center justify-center w-full"
+          >
+            <p className="font-bold text-xl text-white mb-2">{dia}</p>
+            <Card
+              withBorder={false}
+              radius="md"
+              bg="white"
+              className="min-h-[360px] h-auto grow w-full"
+            >
+              <Card.Section>
+                <div className="flex bg-gray-300 rounded-lg h-32 w-full items-center justify-center">
+                  {Desayuno?.imagen ? (
+                    <img
+                      src={Desayuno?.imagen}
+                      alt="Foto de platillo"
+                      width={280}
+                      height={32}
+                      className="rounded-2xl"
+                    />
+                  ) : (
+                    <IconPhoto size={64} color="white" />
+                  )}
+                </div>
+              </Card.Section>
+              <Card.Section className="flex flex-col p-2">
+                <p className="font-bold text-xl ">Desayuno</p>
+                <p className="text-sm text-gray-500">
+                  {Desayuno ? Desayuno.nombre : "No hay desayuno disponible"}
+                </p>
+              </Card.Section>
+              <Card.Section>
+                <div className="flex bg-gray-300 rounded-lg h-32 w-full items-center justify-center">
+                  {Comida?.imagen ? (
+                    <img
+                      src={Comida?.imagen}
+                      alt="Foto de platillo"
+                      width={280}
+                      height={32}
+                      className="rounded-2xl"
+                    />
+                  ) : (
+                    <IconPhoto size={64} color="white" />
+                  )}
+                </div>
+              </Card.Section>
+              <Card.Section className="flex flex-col p-2">
+                <p className="font-bold text-xl ">Comida</p>
+                <p className="text-sm text-gray-500">
+                  {Comida ? Comida.nombre : "No hay comida disponible"}
+                </p>
+              </Card.Section>
+            </Card>
+          </Card>
+        </Carousel.Slide>
+      );
+    }
+  );
 
   return (
     <main className="bg-white h-full">
@@ -99,9 +175,17 @@ function HomePage() {
               >
                 <div className="flex flex-col items-center justify-between w-full p-2 gap-2">
                   <Card.Section>
-                    <div className="flex bg-gray-300 rounded-2xl h-32 w-[280px] items-center justify-center">
+                    {desayuno?.imagen ? (
+                      <img
+                        src={desayuno?.imagen}
+                        alt="Foto de platillo"
+                        width={280}
+                        height={32}
+                        className="rounded-2xl"
+                      />
+                    ) : (
                       <IconPhoto size={64} color="white" />
-                    </div>
+                    )}
                   </Card.Section>
                   <Card.Section>
                     <div className="flex flex-col items-start w-full">
@@ -185,9 +269,17 @@ function HomePage() {
               >
                 <div className="flex flex-col items-center justify-between w-full p-2 gap-2">
                   <Card.Section>
-                    <div className="flex bg-gray-300 rounded-2xl h-32 w-[280px] items-center justify-center">
+                    {comida?.imagen ? (
+                      <img
+                        src={comida?.imagen}
+                        alt="Foto de platillo"
+                        width={280}
+                        height={32}
+                        className="rounded-2xl"
+                      />
+                    ) : (
                       <IconPhoto size={64} color="white" />
-                    </div>
+                    )}
                   </Card.Section>
                   <Card.Section>
                     <div className="flex flex-col items-start w-full">
@@ -247,6 +339,32 @@ function HomePage() {
             <p className="text-white">No hay comida</p>
           )}
         </Card>
+      </div>
+      <div className="flex flex-col items-center justify-center">
+        <h2 className="font-bold my-4  text-xl text-[#252D4D]">Menú semanal</h2>
+        {menu !== null ? (
+          menu !== undefined ? (
+            <Carousel
+              slideSize={{ base: "70%", md: "50%", lg: "33%" }}
+              slideGap="md"
+              w={"100%"}
+              height={"auto"}
+              emblaOptions={{
+                loop: true,
+                align: "center",
+                slidesToScroll: 1,
+              }}
+            >
+              {slides}
+            </Carousel>
+          ) : (
+            <div className="flex items-center justify-center">
+              <Loader />
+            </div>
+          )
+        ) : (
+          <p className="text-white">No hay menú</p>
+        )}
       </div>
     </main>
   );
